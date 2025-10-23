@@ -12,7 +12,7 @@ import nltk
 from transformers import pipeline
 import os
 
-# Download NLTK data
+# --- Download NLTK data ---
 @st.cache_resource
 def download_nltk():
     nltk.download('punkt', quiet=True)
@@ -128,17 +128,6 @@ def load_model():
 
 nlp = load_model()
 
-# --- Keyword Correction ---
-positive_keywords = ['bagus', 'seru', 'keren', 'mantap', 'asyik', 'menarik', 'seruu', 'baguss', 'bagus banget', 'top']
-negative_keywords = ['buruk', 'jelek', 'parah', 'lemot', 'error', 'bug', 'ngelag', 'sampah', 'tidak bagus', 'tidak seru']
-
-def adjust_sentiment(text, label):
-    if any(word in text for word in positive_keywords) and label != 'positive':
-        return 'positive'
-    if any(word in text for word in negative_keywords) and label != 'negative':
-        return 'negative'
-    return label
-
 # --- Streamlit UI ---
 st.set_page_config(page_title="Klasifikasi Sentimen Teks", layout="centered")
 
@@ -155,34 +144,24 @@ if st.button("🔍 Prediksi Sentimen"):
         st.warning("Silakan masukkan teks terlebih dahulu.")
     else:
         with st.spinner("Sedang memproses..."):
-            # Preprocessing
             clean_text = preprocess_text(user_input)
             
             if not clean_text:
                 st.error("Teks terlalu pendek atau tidak valid setelah preprocessing.")
             else:
-                # Prediksi
                 try:
                     result = nlp(clean_text)[0]
                     raw_label = result['label']
                     raw_score = result['score']
 
-                    # Koreksi label
-                    final_label = adjust_sentiment(clean_text, raw_label)
-
                     # Tampilkan hasil
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Label Awal", raw_label.upper())
-                    with col2:
-                        st.metric("Label Akhir (Setelah Koreksi)", final_label.upper())
-
+                    st.metric("Label", raw_label.upper())
                     st.progress(raw_score)
                     st.write(f"**Confidence Score:** `{raw_score:.4f}`")
 
                     # Warna berdasarkan label
-                    color = {"positive": "🟢", "negative": "🔴", "neutral": "🟡"}.get(final_label, "⚪")
-                    st.markdown(f"### {color} **Sentimen: {final_label.upper()}**")
+                    color = {"positive": "🟢", "negative": "🔴", "neutral": "🟡"}.get(raw_label, "⚪")
+                    st.markdown(f"### {color} **Sentimen: {raw_label.upper()}**")
 
                     with st.expander("Lihat detail preprocessing"):
                         st.write("**Teks Asli:**", user_input)
@@ -194,8 +173,7 @@ if st.button("🔍 Prediksi Sentimen"):
                     st.session_state.history.append({
                         'teks': user_input,
                         'clean': clean_text,
-                        'raw_label': raw_label,
-                        'final_label': final_label,
+                        'label': raw_label,
                         'score': raw_score
                     })
 
@@ -207,7 +185,7 @@ if 'history' in st.session_state and st.session_state.history:
     st.markdown("---")
     st.subheader("📜 Riwayat Prediksi")
     history_df = pd.DataFrame(st.session_state.history)
-    st.dataframe(history_df[['teks', 'final_label', 'score']].head(10), use_container_width=True)
+    st.dataframe(history_df[['teks', 'label', 'score']].head(10), use_container_width=True)
 
     if st.button("🗑️ Hapus Riwayat"):
         st.session_state.history = []
